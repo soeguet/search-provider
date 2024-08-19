@@ -5,6 +5,9 @@ import subprocess
 from typing import Tuple
 import urllib.parse
 import re
+import requests
+
+git_username = os.getenv("GITHUB_USERNAME", default="")
 
 
 def get_query() -> str:
@@ -68,22 +71,18 @@ def main_function(query: str) -> Tuple[str, str]:
     elif query.startswith("gpt "):
         search_term = query[4:]
         return "url", f"https://chatgpt.com/?q={urllib.parse.quote(search_term)}"
-    
-    
+
     ## prefix: git
     elif query.startswith("git"):
-        
-        git_username = os.getenv("github_username", default="")
-        
-        if query == "git .":
+
+        if query == "git ." or query == "git":
             return "url", f"https://github.com/{git_username}"
 
-        elif query == "git":
-            # todo
-            return "url", f"https://github.com/{git_username}"
+        if query == "git?":
+            return "git", ""
 
         else:
-            if '/' in query:
+            if "/" in query:
                 return "url", f"https://github.com/{query[4:]}"
             else:
                 return "url", f"https://github.com/{git_username}/{query[4:]}"
@@ -102,6 +101,52 @@ def main_function(query: str) -> Tuple[str, str]:
         return "url", f"https://www.google.com/search?q={urllib.parse.quote(query)}"
 
 
+def handle_git() -> list[tuple[str, str]]:
+    url: str = f"https://api.github.com/users/{git_username}/repos"
+    response: requests.Response = requests.get(url)
+    repos: list[dict] = response.json()
+
+    repo_info: list[tuple[str, str]] = [
+        (repo["full_name"], repo["html_url"]) for repo in repos
+    ]
+
+    return repo_info
+
+
+def prepare_git_zenity_args(repo_info) -> list[str]:
+    zenity_args = [
+        "zenity",
+        "--list",
+        "--column=Repository",
+        "--column=URL",
+        "--width=600",
+        "--height=400",
+        "--hide-column=URL",
+        "--separator=|",
+    ]
+    for repo in repo_info:
+        zenity_args.extend([repo[0], repo[1]])
+
+    return zenity_args
+
+
+def call_git_zenity(repo_info, zenity_args: list[str]):
+    try:
+        selected_repo = subprocess.check_output(zenity_args, text=True).strip()
+
+        if selected_repo:
+            url = next(
+                (repo[1] for repo in repo_info if repo[0] == selected_repo), None
+            )
+
+            if url:
+                subprocess.run(["xdg-open", url])
+
+    except subprocess.CalledProcessError as e:
+        ## simply return
+        return
+
+
 if __name__ == "__main__":
 
     query = get_query()
@@ -109,5 +154,8 @@ if __name__ == "__main__":
 
     if url[0] == "url":
         open_url(url[1])
- #   elif url[0] == "git":
-  #      handle_git(url[1])
+
+    elif url[0] == "git":
+        github_response = handle_git()
+        zenity_args = prepare_git_zenity_args(github_response)
+        call_git_zenity(github_response, zenity_args)
