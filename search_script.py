@@ -46,15 +46,18 @@ def main_function(passed_query: str) -> Tuple[str, str]:
     if passed_query.startswith("url "):
         return "url", passed_query[4:].strip()
 
+    elif passed_query == "gg":
+        return "url", "https://www.google.com/"
+
     ## prefix: gg
     elif passed_query.startswith("gg "):
         search_term = passed_query[3:]
         return "url", f"https://www.google.com/search?q={urllib.parse.quote(search_term)}",
 
+    ## prefix: gpt
     elif passed_query == "gpt":
         return "url", "https://chatgpt.com/?model=gpt-4o"
 
-    ## prefix: gpt
     elif passed_query.startswith("gpt "):
         search_term = passed_query[4:]
         return "url", f"https://chatgpt.com/?q={urllib.parse.quote(search_term)}"
@@ -62,7 +65,6 @@ def main_function(passed_query: str) -> Tuple[str, str]:
     ## prefix: git
     elif passed_query == "git" or passed_query == "git .":
         return "url", f"https://github.com/{git_username}"
-
 
     elif passed_query == "git?":
         return "git", ""
@@ -72,6 +74,10 @@ def main_function(passed_query: str) -> Tuple[str, str]:
             return "url", f"https://github.com/{passed_query[4:]}"
         else:
             return "url", f"https://github.com/{git_username}/{passed_query[4:]}"
+
+    ## claude
+    elif passed_query == "claude":
+        return "url", "https://claude.ai/new"
 
     ## URL check
     # full url
